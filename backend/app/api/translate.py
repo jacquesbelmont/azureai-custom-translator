@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+import psycopg
 
 from app.models.requests import DbTranslateRequest, TextTranslateRequest, UrlTranslateRequest
 from app.models.responses import DbTranslateResponse, TextTranslateResponse, UrlTranslateResponse
@@ -29,3 +30,8 @@ def translate_db(req: DbTranslateRequest) -> DbTranslateResponse:
         return translate_db_pipeline(req)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except psycopg.OperationalError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Postgres is not available. Start Postgres (port 5432) or update POSTGRES_DSN. ({e})",
+        )

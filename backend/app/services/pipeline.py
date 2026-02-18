@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from app.core.settings import settings
+from app.core.runtime_config import get_override
 from app.db.cache import cache_get, cache_put, make_cache_key
 from app.db.jobs import run_db_job
 from app.models.requests import DbTranslateRequest, TextTranslateRequest, UrlTranslateRequest
@@ -16,12 +19,15 @@ from app.services.openai_postedit import post_edit_markdown, post_edit_text
 from app.services.url_extract import extract_main_text, fetch_html, to_markdown
 
 
-def _resolve_lang(req_source: str | None, req_target: str | None) -> tuple[str, str]:
-    return (req_source or settings.translation_from, req_target or settings.translation_to)
+def _resolve_lang(req_source: Optional[str], req_target: Optional[str]) -> tuple[str, str]:
+    default_from = get_override("translation_from") or settings.translation_from
+    default_to = get_override("translation_to") or settings.translation_to
+    return (req_source or default_from, req_target or default_to)
 
 
-def _resolve_category(req_category: str | None) -> str | None:
-    return req_category or (settings.azure_translator_category or None)
+def _resolve_category(req_category: Optional[str]) -> Optional[str]:
+    default_category = get_override("azure_translator_category") or settings.azure_translator_category
+    return req_category or (default_category or None)
 
 
 def translate_text_pipeline(req: TextTranslateRequest) -> TextTranslateResponse:
@@ -44,7 +50,7 @@ def translate_text_pipeline(req: TextTranslateRequest) -> TextTranslateResponse:
 
     translated = azure_translate(req.text, source_lang, target_lang, category)
 
-    post_edited: str | None = None
+    post_edited: Optional[str] = None
     if req.enable_post_edit and openai_is_configured():
         post_edited = post_edit_text(
             source_text=req.text,
@@ -89,7 +95,7 @@ def translate_url_pipeline(req: UrlTranslateRequest) -> UrlTranslateResponse:
 
     translated_md = azure_translate(source_md, source_lang, target_lang, category)
 
-    post_edited_md: str | None = None
+    post_edited_md: Optional[str] = None
     if req.enable_post_edit and openai_is_configured():
         post_edited_md = post_edit_markdown(
             source_markdown=source_md,

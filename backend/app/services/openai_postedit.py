@@ -3,10 +3,19 @@ from __future__ import annotations
 from openai import OpenAI
 
 from app.core.settings import settings
+from app.core.runtime_config import get_override
 
 
 def is_configured() -> bool:
-    return bool(settings.openai_api_key)
+    return bool(get_override("openai_api_key") or settings.openai_api_key)
+
+
+def _client_and_model() -> tuple[OpenAI, str]:
+    api_key = get_override("openai_api_key") or settings.openai_api_key
+    model = get_override("openai_model") or settings.openai_model
+    if not api_key:
+        raise ValueError("OpenAI is not configured.")
+    return OpenAI(api_key=api_key), model
 
 
 def post_edit_text(
@@ -16,10 +25,7 @@ def post_edit_text(
     source_language: str,
     target_language: str,
 ) -> str:
-    if not is_configured():
-        raise ValueError("OpenAI is not configured.")
-
-    client = OpenAI(api_key=settings.openai_api_key)
+    client, model = _client_and_model()
 
     prompt = (
         "You are a translation post-editor. Improve fluency, fix awkward phrases, "
@@ -31,10 +37,7 @@ def post_edit_text(
         f"{translated_text}\n"
     )
 
-    resp = client.responses.create(
-        model=settings.openai_model,
-        input=prompt,
-    )
+    resp = client.responses.create(model=model, input=prompt)
 
     return (resp.output_text or "").strip()
 
@@ -49,7 +52,7 @@ def post_edit_markdown(
     if not is_configured():
         raise ValueError("OpenAI is not configured.")
 
-    client = OpenAI(api_key=settings.openai_api_key)
+    client, model = _client_and_model()
 
     prompt = (
         "You are a translation post-editor for Markdown. Improve readability and formatting "
@@ -61,9 +64,6 @@ def post_edit_markdown(
         f"{translated_markdown}\n"
     )
 
-    resp = client.responses.create(
-        model=settings.openai_model,
-        input=prompt,
-    )
+    resp = client.responses.create(model=model, input=prompt)
 
     return (resp.output_text or "").strip()

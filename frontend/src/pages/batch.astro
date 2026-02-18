@@ -1,0 +1,158 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+---
+
+<AppLayout pageTitle="Batch Processing Dashboard" title="Polyglot AI Studio">
+  <div id="error" class="error" style="display:none;"></div>
+
+  <div class="card">
+    <div class="row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+      <div>
+        <div class="muted">Processed</div>
+        <div id="statProcessed" style="font-size: 22px; font-weight: 750;">—</div>
+      </div>
+      <div>
+        <div class="muted">Cached hits</div>
+        <div id="statCached" style="font-size: 22px; font-weight: 750;">—</div>
+      </div>
+      <div>
+        <div class="muted">Translated</div>
+        <div id="statTranslated" style="font-size: 22px; font-weight: 750;">—</div>
+      </div>
+      <div>
+        <div class="muted">Failed</div>
+        <div id="statFailed" style="font-size: 22px; font-weight: 750;">—</div>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top: 14px; grid-template-columns: 420px 1fr;">
+      <div class="card" style="box-shadow: none;">
+        <div style="font-weight: 700;">Job Configuration</div>
+        <div class="muted" style="margin-top: 4px;">Runs a synchronous batch using your configured Postgres tables.</div>
+
+        <div style="margin-top: 10px;">
+          <label for="limit">Limit</label>
+          <input id="limit" type="number" min="1" max="5000" />
+        </div>
+
+        <div style="margin-top: 10px;">
+          <label for="fromLang">Source language</label>
+          <input id="fromLang" placeholder="en" />
+        </div>
+
+        <div style="margin-top: 10px;">
+          <label for="toLang">Target language</label>
+          <input id="toLang" placeholder="pt-br" />
+        </div>
+
+        <div style="margin-top: 10px;">
+          <label for="category">Category (optional)</label>
+          <input id="category" placeholder="custom category id" />
+        </div>
+
+        <div class="actions">
+          <label class="toggle">
+            <input id="postEdit" type="checkbox" />
+            Azure + OpenAI Post-Edit
+          </label>
+          <button id="startBtn" class="btn" type="button">Start Batch Job</button>
+        </div>
+
+        <div class="muted">Results are written to the configured target table and cached.</div>
+      </div>
+
+      <div class="card" style="box-shadow: none;">
+        <div style="font-weight: 700;">Job Output</div>
+        <div id="empty" class="muted" style="margin-top: 10px;">No batch job executed yet.</div>
+        <pre id="raw" style="display:none; margin-top: 10px;"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const STORAGE_KEY = 'polyglot_ai_config_v1';
+    const defaultConfig = {
+      apiBaseUrl: 'http://localhost:8000',
+      defaultFrom: 'en',
+      defaultTo: 'pt-br',
+      defaultCategory: '',
+      enablePostEdit: true
+    };
+    function loadConfig() {
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (!raw) return { ...defaultConfig };
+        const parsed = JSON.parse(raw);
+        return { ...defaultConfig, ...parsed };
+      } catch {
+        return { ...defaultConfig };
+      }
+    }
+
+    const cfg = loadConfig();
+    const apiBase = cfg.apiBaseUrl;
+
+    const el = (id) => document.getElementById(id);
+    const showError = (msg) => {
+      el('error').style.display = 'block';
+      el('error').textContent = msg;
+    };
+    const clearError = () => {
+      el('error').style.display = 'none';
+      el('error').textContent = '';
+    };
+
+    el('limit').value = '100';
+    el('fromLang').value = cfg.defaultFrom;
+    el('toLang').value = cfg.defaultTo;
+    el('category').value = cfg.defaultCategory || '';
+    el('postEdit').checked = !!cfg.enablePostEdit;
+
+    function setStats(data) {
+      el('statProcessed').textContent = String(data?.processed ?? '—');
+      el('statCached').textContent = String(data?.cached_hits ?? '—');
+      el('statTranslated').textContent = String(data?.translated ?? '—');
+      el('statFailed').textContent = String(data?.failed ?? '—');
+    }
+
+    el('startBtn').addEventListener('click', async () => {
+      clearError();
+
+      const payload = {
+        limit: Number(el('limit').value || 100),
+        source_language: (el('fromLang').value || '').trim() || undefined,
+        target_language: (el('toLang').value || '').trim() || undefined,
+        category: (el('category').value || '').trim() || undefined,
+        enable_post_edit: !!el('postEdit').checked
+      };
+
+      el('startBtn').disabled = true;
+      el('startBtn').textContent = 'Running...';
+      el('empty').textContent = 'Running batch job...';
+      el('raw').style.display = 'none';
+
+      try {
+        const resp = await fetch(`${apiBase}/translate/db`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data?.detail ? String(data.detail) : `Request failed (${resp.status})`);
+        }
+        setStats(data);
+        el('empty').style.display = 'none';
+        el('raw').style.display = 'block';
+        el('raw').textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        showError(String(e?.message || e));
+        el('empty').style.display = 'block';
+        el('empty').textContent = 'No batch job executed yet.';
+      } finally {
+        el('startBtn').disabled = false;
+        el('startBtn').textContent = 'Start Batch Job';
+      }
+    });
+  </script>
+</AppLayout>

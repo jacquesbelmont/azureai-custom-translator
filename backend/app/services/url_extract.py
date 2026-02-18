@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional, Tuple
+
 import httpx
 import trafilatura
 from bs4 import BeautifulSoup
@@ -12,11 +14,11 @@ def fetch_html(url: str) -> str:
     return resp.text
 
 
-def extract_main_text(html: str) -> tuple[str | None, str]:
+def extract_main_text(html: str) -> Tuple[Optional[str], str]:
     downloaded = trafilatura.extract(html, include_comments=False, include_tables=True, output_format="xml")
 
-    title: str | None = None
-    text: str | None = None
+    title: Optional[str] = None
+    text: Optional[str] = None
 
     if downloaded:
         try:
@@ -31,7 +33,7 @@ def extract_main_text(html: str) -> tuple[str | None, str]:
         title = title or (soup.title.string.strip() if soup.title and soup.title.string else None)
         text = soup.get_text("\n")
 
-    return title, text
+    return title, text or ""
 
 
 def to_markdown(text: str) -> str:

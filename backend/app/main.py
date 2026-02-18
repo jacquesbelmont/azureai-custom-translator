@@ -18,7 +18,11 @@ app.add_middleware(
 
 @app.on_event("startup")
 def _startup() -> None:
-    ensure_cache_table()
+    try:
+        ensure_cache_table()
+    except Exception as e:
+        # Allow running without Postgres for local demos.
+        print(f"[startup] Postgres/cache not available yet: {type(e).__name__}: {e}")
 
 
 @app.get("/health")

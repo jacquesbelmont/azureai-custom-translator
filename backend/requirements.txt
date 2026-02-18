@@ -7,6 +7,7 @@ psycopg[binary]==3.2.5
 tenacity==9.0.0
 beautifulsoup4==4.12.3
 trafilatura==2.0.0
+lxml_html_clean==0.4.1
 markdownify==0.13.1
 python-dotenv==1.0.1
 openai==1.61.1

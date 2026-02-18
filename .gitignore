@@ -1,47 +1,114 @@
 # macOS
 .DS_Store
 
+# Linux
+*.swp
+*~
+
 # Python
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 *.so
+.Python
+.python-version
+.hypothesis/
+.tox/
+.nox/
+.cache/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
+coverage.xml
 htmlcov/
+
+# PyCharm / IntelliJ
+.idea/
+
+# Byte-compiled / optimized / DLL files
+*.pkl
+*.pkl.gz
 
 # Virtual environments
 .venv/
 venv/
 ENV/
 
+# Python packaging
+build/
+dist/
+*.egg-info/
+
 # Environment files
 .env
 .env.*
 !.env.example
+backend/.env
+frontend/.env
+backend/.env.*
+frontend/.env.*
+!backend/.env.example
+!frontend/.env.example
+.envrc
+
+# Secrets
+*.pem
+*.key
+*.p12
+*.pfx
 
 # Logs
 *.log
+
+# Node (reference-style)
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # Node / Astro
 node_modules/
 frontend/node_modules/
 .pnpm-store/
 
-# Astro build artifacts
+# Node caches
+.npm/
+.yarn/
+.cache-loader/
+.eslintcache
+.parcel-cache/
+.turbo/
+.next/
+
+# Astro / Vite caches
 .astro/
+.vite/
+
+# Astro build artifacts
 dist/
 frontend/dist/
 
-# Vite
-.vite/
+# Astro build output (some setups)
+frontend/.astro/
 
 # TypeScript
 *.tsbuildinfo
 
 # Editor
 .vscode/
-.idea/
+
+# Docker
+**/.docker/
+docker-data/
+docker-compose.override.yml
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Local configs
+*.local

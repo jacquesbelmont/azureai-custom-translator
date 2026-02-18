@@ -1,19 +1,22 @@
 import hashlib
 from datetime import datetime
+from typing import Optional
 
+import psycopg
 from psycopg.rows import dict_row
 
 from app.core.settings import settings
+from app.core.runtime_config import get_override
 from app.db.conn import get_conn
 
 
-def make_cache_key(text: str, source_language: str, target_language: str, category: str | None) -> str:
+def make_cache_key(text: str, source_language: str, target_language: str, category: Optional[str]) -> str:
     payload = f"{source_language}|{target_language}|{category or ''}|{text}".encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
 
 
 def ensure_cache_table() -> None:
-    table = settings.cache_table
+    table = get_override("cache_table") or settings.cache_table
     with get_conn() as conn:
         conn.execute(
             f"""
@@ -32,48 +35,54 @@ def ensure_cache_table() -> None:
         conn.commit()
 
 
-def cache_get(cache_key: str) -> dict | None:
-    table = settings.cache_table
-    with get_conn() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                f"SELECT translated_text, post_edited_text FROM {table} WHERE cache_key = %s",
-                (cache_key,),
-            )
-            row = cur.fetchone()
-            return dict(row) if row else None
+def cache_get(cache_key: str) -> Optional[dict]:
+    table = get_override("cache_table") or settings.cache_table
+    try:
+        with get_conn() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    f"SELECT translated_text, post_edited_text FROM {table} WHERE cache_key = %s",
+                    (cache_key,),
+                )
+                row = cur.fetchone()
+                return dict(row) if row else None
+    except psycopg.OperationalError:
+        return None
 
 
 def cache_put(
     cache_key: str,
     source_language: str,
     target_language: str,
-    category: str | None,
+    category: Optional[str],
     source_text: str,
     translated_text: str,
-    post_edited_text: str | None,
+    post_edited_text: Optional[str],
 ) -> None:
-    table = settings.cache_table
-    with get_conn() as conn:
-        conn.execute(
-            f"""
-            INSERT INTO {table} (
-              cache_key, source_language, target_language, category, source_text,
-              translated_text, post_edited_text, created_at
-            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-            ON CONFLICT (cache_key) DO UPDATE SET
-              translated_text = EXCLUDED.translated_text,
-              post_edited_text = EXCLUDED.post_edited_text
-            """,
-            (
-                cache_key,
-                source_language,
-                target_language,
-                category,
-                source_text,
-                translated_text,
-                post_edited_text,
-                datetime.utcnow(),
-            ),
-        )
-        conn.commit()
+    table = get_override("cache_table") or settings.cache_table
+    try:
+        with get_conn() as conn:
+            conn.execute(
+                f"""
+                INSERT INTO {table} (
+                  cache_key, source_language, target_language, category, source_text,
+                  translated_text, post_edited_text, created_at
+                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+                ON CONFLICT (cache_key) DO UPDATE SET
+                  translated_text = EXCLUDED.translated_text,
+                  post_edited_text = EXCLUDED.post_edited_text
+                """,
+                (
+                    cache_key,
+                    source_language,
+                    target_language,
+                    category,
+                    source_text,
+                    translated_text,
+                    post_edited_text,
+                    datetime.utcnow(),
+                ),
+            )
+            conn.commit()
+    except psycopg.OperationalError:
+        return

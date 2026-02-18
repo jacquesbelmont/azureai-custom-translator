@@ -1,0 +1,294 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+---
+
+<AppLayout pageTitle="Application Settings" title="Polyglot AI Studio">
+  <div class="card" style="max-width: 980px;">
+    <div style="font-weight: 750; font-size: 16px;">Application Settings</div>
+    <div class="muted" style="margin-top: 6px;">Settings are stored locally in your browser and can be applied to the backend (localhost only) for easy demos.</div>
+
+    <div id="status" class="muted" style="margin-top: 10px;"></div>
+
+    <div class="grid" style="margin-top: 14px; grid-template-columns: 1fr 1fr;">
+      <div class="card" style="box-shadow: none;">
+        <div style="font-weight: 700;">App</div>
+
+        <div style="margin-top: 10px;">
+          <label for="apiBaseUrl">Backend API Base URL</label>
+          <input id="apiBaseUrl" placeholder="http://localhost:8000" />
+        </div>
+
+        <div class="row" style="margin-top: 10px; grid-template-columns: 1fr 1fr 1fr;">
+          <div>
+            <label for="defaultFrom">Default from</label>
+            <input id="defaultFrom" placeholder="en" />
+          </div>
+          <div>
+            <label for="defaultTo">Default to</label>
+            <input id="defaultTo" placeholder="pt-br" />
+          </div>
+          <div>
+            <label for="defaultCategory">Default category</label>
+            <input id="defaultCategory" placeholder="(optional)" />
+          </div>
+        </div>
+
+        <div style="margin-top: 10px;">
+          <label class="toggle">
+            <input id="enablePostEdit" type="checkbox" />
+            Enable AI Post-Edit by default
+          </label>
+        </div>
+      </div>
+
+      <div class="card" style="box-shadow: none;">
+        <div style="font-weight: 700;">Azure Translator</div>
+
+        <div style="margin-top: 10px;">
+          <label for="azureEndpoint">Endpoint</label>
+          <input id="azureEndpoint" placeholder="https://api.cognitive.microsofttranslator.com" />
+        </div>
+
+        <div class="row" style="margin-top: 10px; grid-template-columns: 1fr 1fr;">
+          <div>
+            <label for="azureRegion">Region</label>
+            <input id="azureRegion" placeholder="eastus2" />
+          </div>
+          <div>
+            <label for="azureKey">Key</label>
+            <input id="azureKey" placeholder="(secret)" type="password" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top: 14px; grid-template-columns: 1fr 1fr;">
+      <div class="card" style="box-shadow: none;">
+        <div style="font-weight: 700;">OpenAI (Optional)</div>
+        <div class="muted" style="margin-top: 6px;">Used for post-editing if configured.</div>
+
+        <div class="row" style="margin-top: 10px; grid-template-columns: 1fr 1fr;">
+          <div>
+            <label for="openaiModel">Model</label>
+            <input id="openaiModel" placeholder="gpt-4o-mini" />
+          </div>
+          <div>
+            <label for="openaiApiKey">API Key</label>
+            <input id="openaiApiKey" placeholder="(secret)" type="password" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="box-shadow: none;">
+        <div style="font-weight: 700;">PostgreSQL (Batch + Cache)</div>
+
+        <div style="margin-top: 10px;">
+          <label for="postgresDsn">DSN</label>
+          <input id="postgresDsn" placeholder="postgresql://..." />
+        </div>
+
+        <div class="row" style="margin-top: 10px; grid-template-columns: 1fr 1fr 1fr;">
+          <div>
+            <label for="sourceTable">Source table</label>
+            <input id="sourceTable" />
+          </div>
+          <div>
+            <label for="sourceIdColumn">Source ID column</label>
+            <input id="sourceIdColumn" />
+          </div>
+          <div>
+            <label for="sourceTextColumn">Source text column</label>
+            <input id="sourceTextColumn" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-top: 10px; grid-template-columns: 1fr 1fr 1fr;">
+          <div>
+            <label for="targetTable">Target table</label>
+            <input id="targetTable" />
+          </div>
+          <div>
+            <label for="targetIdColumn">Target ID column</label>
+            <input id="targetIdColumn" />
+          </div>
+          <div>
+            <label for="targetTextColumn">Target text column</label>
+            <input id="targetTextColumn" />
+          </div>
+          <div>
+            <label for="cacheTable">Cache table</label>
+            <input id="cacheTable" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top: 14px; justify-content: flex-end;">
+      <button id="saveBtn" class="btn secondary" type="button">Save locally</button>
+      <button id="applyBtn" class="btn" type="button">Apply to backend</button>
+    </div>
+
+    <div class="muted" style="margin-top: 10px;">
+      Tip: start the backend and then click "Apply to backend" so the rest of the UI works without editing .env.
+    </div>
+  </div>
+
+  <script type="module">
+    const STORAGE_KEY = 'polyglot_ai_config_v1';
+
+    const defaultConfig = {
+      apiBaseUrl: 'http://localhost:8000',
+      defaultFrom: 'en',
+      defaultTo: 'pt-br',
+      defaultCategory: '',
+      enablePostEdit: true,
+
+      azureEndpoint: 'https://api.cognitive.microsofttranslator.com',
+      azureKey: '',
+      azureRegion: '',
+
+      openaiApiKey: '',
+      openaiModel: 'gpt-4o-mini',
+
+      postgresDsn: 'postgresql://postgres:postgres@localhost:5432/postgres',
+      sourceTable: 'source_texts',
+      sourceIdColumn: 'id',
+      sourceTextColumn: 'source_text',
+      targetTable: 'translated_texts',
+      targetIdColumn: 'id',
+      targetTextColumn: 'translated_text',
+      cacheTable: 'translation_cache'
+    };
+
+    function loadConfig() {
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (!raw) return { ...defaultConfig };
+        const parsed = JSON.parse(raw);
+        return { ...defaultConfig, ...parsed };
+      } catch {
+        return { ...defaultConfig };
+      }
+    }
+
+    function saveConfig(cfg) {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    }
+
+    async function applyBackendConfig(cfg) {
+      const payload = {
+        translation_from: cfg.defaultFrom,
+        translation_to: cfg.defaultTo,
+        azure_translator_category: cfg.defaultCategory || undefined,
+
+        azure_translator_endpoint: cfg.azureEndpoint,
+        azure_translator_key: cfg.azureKey || undefined,
+        azure_translator_region: cfg.azureRegion || undefined,
+
+        openai_api_key: cfg.openaiApiKey || undefined,
+        openai_model: cfg.openaiModel || undefined,
+
+        postgres_dsn: cfg.postgresDsn,
+        source_table: cfg.sourceTable,
+        source_id_column: cfg.sourceIdColumn,
+        source_text_column: cfg.sourceTextColumn,
+        target_table: cfg.targetTable,
+        target_id_column: cfg.targetIdColumn,
+        target_text_column: cfg.targetTextColumn,
+        cache_table: cfg.cacheTable
+      };
+
+      const resp = await fetch(`${cfg.apiBaseUrl}/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.detail ? String(data.detail) : `Config failed (${resp.status})`);
+      }
+      return data;
+    }
+
+    const el = (id) => document.getElementById(id);
+    const status = el('status');
+
+    function setStatus(msg) {
+      status.textContent = msg;
+    }
+
+    function bindFromConfig(cfg) {
+      el('apiBaseUrl').value = cfg.apiBaseUrl;
+      el('defaultFrom').value = cfg.defaultFrom;
+      el('defaultTo').value = cfg.defaultTo;
+      el('defaultCategory').value = cfg.defaultCategory;
+      el('enablePostEdit').checked = !!cfg.enablePostEdit;
+
+      el('azureEndpoint').value = cfg.azureEndpoint;
+      el('azureRegion').value = cfg.azureRegion;
+      el('azureKey').value = cfg.azureKey;
+
+      el('openaiModel').value = cfg.openaiModel;
+      el('openaiApiKey').value = cfg.openaiApiKey;
+
+      el('postgresDsn').value = cfg.postgresDsn;
+      el('sourceTable').value = cfg.sourceTable;
+      el('sourceIdColumn').value = cfg.sourceIdColumn;
+      el('sourceTextColumn').value = cfg.sourceTextColumn;
+      el('targetTable').value = cfg.targetTable;
+      el('targetIdColumn').value = cfg.targetIdColumn;
+      el('targetTextColumn').value = cfg.targetTextColumn;
+      el('cacheTable').value = cfg.cacheTable;
+    }
+
+    function readToConfig() {
+      const cfg = loadConfig();
+      cfg.apiBaseUrl = el('apiBaseUrl').value.trim() || cfg.apiBaseUrl;
+      cfg.defaultFrom = el('defaultFrom').value.trim() || cfg.defaultFrom;
+      cfg.defaultTo = el('defaultTo').value.trim() || cfg.defaultTo;
+      cfg.defaultCategory = el('defaultCategory').value.trim();
+      cfg.enablePostEdit = el('enablePostEdit').checked;
+
+      cfg.azureEndpoint = el('azureEndpoint').value.trim() || cfg.azureEndpoint;
+      cfg.azureRegion = el('azureRegion').value.trim();
+      cfg.azureKey = el('azureKey').value.trim();
+
+      cfg.openaiModel = el('openaiModel').value.trim() || cfg.openaiModel;
+      cfg.openaiApiKey = el('openaiApiKey').value.trim();
+
+      cfg.postgresDsn = el('postgresDsn').value.trim() || cfg.postgresDsn;
+      cfg.sourceTable = el('sourceTable').value.trim() || cfg.sourceTable;
+      cfg.sourceIdColumn = el('sourceIdColumn').value.trim() || cfg.sourceIdColumn;
+      cfg.sourceTextColumn = el('sourceTextColumn').value.trim() || cfg.sourceTextColumn;
+      cfg.targetTable = el('targetTable').value.trim() || cfg.targetTable;
+      cfg.targetIdColumn = el('targetIdColumn').value.trim() || cfg.targetIdColumn;
+      cfg.targetTextColumn = el('targetTextColumn').value.trim() || cfg.targetTextColumn;
+      cfg.cacheTable = el('cacheTable').value.trim() || cfg.cacheTable;
+      return cfg;
+    }
+
+    const initial = loadConfig();
+    bindFromConfig(initial);
+    setStatus('Loaded local settings.');
+
+    el('saveBtn').addEventListener('click', () => {
+      const cfg = readToConfig();
+      saveConfig(cfg);
+      setStatus('Saved locally.');
+    });
+
+    el('applyBtn').addEventListener('click', async () => {
+      try {
+        setStatus('Applying to backend...');
+        const cfg = readToConfig();
+        saveConfig(cfg);
+        const res = await applyBackendConfig(cfg);
+        setStatus('Applied to backend successfully.');
+        console.log(res);
+      } catch (e) {
+        setStatus(String(e?.message || e));
+      }
+    });
+  </script>
+</AppLayout>

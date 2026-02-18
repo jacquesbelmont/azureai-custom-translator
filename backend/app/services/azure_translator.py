@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from typing import Optional
+
 import httpx
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
 from app.core.settings import settings
+from app.core.runtime_config import get_override
 
 
 class AzureTranslatorAuthError(RuntimeError):
@@ -19,11 +22,13 @@ class AzureTranslatorTransientError(RuntimeError):
 
 
 def _headers() -> dict:
-    if not settings.azure_translator_key or not settings.azure_translator_region:
+    key = get_override("azure_translator_key") or settings.azure_translator_key
+    region = get_override("azure_translator_region") or settings.azure_translator_region
+    if not key or not region:
         raise ValueError("Azure Translator is not configured. Set AZURE_TRANSLATOR_KEY and AZURE_TRANSLATOR_REGION.")
     return {
-        "Ocp-Apim-Subscription-Key": settings.azure_translator_key,
-        "Ocp-Apim-Subscription-Region": settings.azure_translator_region,
+        "Ocp-Apim-Subscription-Key": key,
+        "Ocp-Apim-Subscription-Region": region,
         "Content-Type": "application/json",
     }
 
@@ -37,9 +42,10 @@ def translate_text(
     text: str,
     source_language: str,
     target_language: str,
-    category: str | None,
+    category: Optional[str],
 ) -> str:
-    url = f"{settings.azure_translator_endpoint.rstrip('/')}/translate"
+    endpoint = get_override("azure_translator_endpoint") or settings.azure_translator_endpoint
+    url = f"{endpoint.rstrip('/')}/translate"
 
     params: dict[str, str] = {
         "api-version": "3.0",

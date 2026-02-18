@@ -1,0 +1,134 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+---
+
+<AppLayout pageTitle="Web Article Localization" title="Polyglot AI Studio">
+  <div id="error" class="error" style="display:none;"></div>
+
+  <div class="card">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <span class="pill">
+          <label style="margin:0; font-size:12px; color: rgba(15,23,42,.6);">From</label>
+          <input id="fromLang" placeholder="en" style="width: 80px;" />
+        </span>
+        <span class="pill">
+          <label style="margin:0; font-size:12px; color: rgba(15,23,42,.6);">To</label>
+          <input id="toLang" placeholder="pt-br" style="width: 90px;" />
+        </span>
+        <span class="pill">
+          <label style="margin:0; font-size:12px; color: rgba(15,23,42,.6);">Category</label>
+          <input id="category" placeholder="General" style="width: 160px;" />
+        </span>
+      </div>
+
+      <div class="toolbar-right">
+        <label class="toggle">
+          <input id="postEdit" type="checkbox" />
+          AI Post-Edit
+        </label>
+        <button id="translateBtn" class="btn" type="button">Process & Translate</button>
+      </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 1.3fr 1fr;">
+      <div>
+        <label for="url">Article URL</label>
+        <input id="url" placeholder="https://www.example.com/article" />
+        <div class="muted" style="margin-top: 8px;">The backend extracts the main article content and returns translated Markdown.</div>
+      </div>
+
+      <div class="preview">
+        <div class="muted">Markdown preview</div>
+        <div id="output" style="margin-top:10px;"></div>
+        <div id="rawWrap" style="display:none; margin-top:14px;">
+          <div class="muted">Raw JSON</div>
+          <pre id="raw"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { marked } from 'marked';
+
+    const STORAGE_KEY = 'polyglot_ai_config_v1';
+    const defaultConfig = {
+      apiBaseUrl: 'http://localhost:8000',
+      defaultFrom: 'en',
+      defaultTo: 'pt-br',
+      defaultCategory: '',
+      enablePostEdit: true
+    };
+    function loadConfig() {
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (!raw) return { ...defaultConfig };
+        const parsed = JSON.parse(raw);
+        return { ...defaultConfig, ...parsed };
+      } catch {
+        return { ...defaultConfig };
+      }
+    }
+
+    const cfg = loadConfig();
+    const apiBase = cfg.apiBaseUrl;
+
+    const el = (id) => document.getElementById(id);
+    const showError = (msg) => {
+      el('error').style.display = 'block';
+      el('error').textContent = msg;
+    };
+    const clearError = () => {
+      el('error').style.display = 'none';
+      el('error').textContent = '';
+    };
+
+    el('fromLang').value = cfg.defaultFrom;
+    el('toLang').value = cfg.defaultTo;
+    el('category').value = cfg.defaultCategory || '';
+    el('postEdit').checked = !!cfg.enablePostEdit;
+
+    el('translateBtn').addEventListener('click', async () => {
+      clearError();
+      const url = (el('url').value || '').trim();
+      if (!url) {
+        showError('Please enter a valid URL.');
+        return;
+      }
+
+      el('translateBtn').disabled = true;
+      el('translateBtn').textContent = 'Processing...';
+
+      const payload = {
+        url,
+        source_language: (el('fromLang').value || '').trim() || undefined,
+        target_language: (el('toLang').value || '').trim() || undefined,
+        category: (el('category').value || '').trim() || undefined,
+        enable_post_edit: !!el('postEdit').checked
+      };
+
+      try {
+        const resp = await fetch(`${apiBase}/translate/url`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data?.detail ? String(data.detail) : `Request failed (${resp.status})`);
+        }
+
+        const out = data.post_edited_markdown || data.translated_markdown || '';
+        el('output').innerHTML = marked.parse(out);
+        el('rawWrap').style.display = 'block';
+        el('raw').textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        showError(String(e?.message || e));
+      } finally {
+        el('translateBtn').disabled = false;
+        el('translateBtn').textContent = 'Process & Translate';
+      }
+    });
+  </script>
+</AppLayout>

@@ -1,0 +1,12 @@
+{
+  "name": "azureai-custom-translator",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "bash -lc 'cd backend && uvicorn app.main:app --reload --port 8000'",
+    "dev": "echo 'Run backend in one terminal: npm run dev:backend' && echo 'Run frontend in another terminal: npm run dev:frontend'",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview"
+  }
+}

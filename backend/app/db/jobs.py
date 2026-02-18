@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from typing import List, Optional
+
 from psycopg.rows import dict_row
 
 from app.core.settings import settings
+from app.core.runtime_config import get_override
 from app.db.cache import cache_get, cache_put, make_cache_key
 from app.db.conn import get_conn
 from app.services.azure_translator import translate_text as azure_translate
@@ -10,12 +13,15 @@ from app.services.openai_postedit import post_edit_text
 
 
 def _ensure_target_table() -> None:
+    target_table = get_override("target_table") or settings.target_table
+    target_id_column = get_override("target_id_column") or settings.target_id_column
+    target_text_column = get_override("target_text_column") or settings.target_text_column
     with get_conn() as conn:
         conn.execute(
             f"""
-            CREATE TABLE IF NOT EXISTS {settings.target_table} (
-              {settings.target_id_column} TEXT PRIMARY KEY,
-              {settings.target_text_column} TEXT NOT NULL
+            CREATE TABLE IF NOT EXISTS {target_table} (
+              {target_id_column} TEXT PRIMARY KEY,
+              {target_text_column} TEXT NOT NULL
             );
             """
         )
@@ -27,7 +33,7 @@ def run_db_job(
     limit: int,
     source_language: str,
     target_language: str,
-    category: str | None,
+    category: Optional[str],
     enable_post_edit: bool,
 ) -> dict:
     _ensure_target_table()
@@ -36,17 +42,25 @@ def run_db_job(
     cached_hits = 0
     translated = 0
     failed = 0
-    errors: list[str] = []
+    errors: List[str] = []
 
     azure_used = False
     openai_used = False
 
     with get_conn() as conn:
+        source_table = get_override("source_table") or settings.source_table
+        source_id_column = get_override("source_id_column") or settings.source_id_column
+        source_text_column = get_override("source_text_column") or settings.source_text_column
+
+        target_table = get_override("target_table") or settings.target_table
+        target_id_column = get_override("target_id_column") or settings.target_id_column
+        target_text_column = get_override("target_text_column") or settings.target_text_column
+
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 f"""
-                SELECT {settings.source_id_column} AS id, {settings.source_text_column} AS text
-                FROM {settings.source_table}
+                SELECT {source_id_column} AS id, {source_text_column} AS text
+                FROM {source_table}
                 LIMIT %s
                 """,
                 (limit,),
@@ -76,7 +90,7 @@ def run_db_job(
                 azure_used = True
                 base_translation = azure_translate(text, source_language, target_language, category)
 
-                post_edited: str | None = None
+                post_edited: Optional[str] = None
                 if enable_post_edit:
                     openai_used = True
                     post_edited = post_edit_text(
@@ -109,12 +123,15 @@ def run_db_job(
 
 
 def _upsert_target(conn, row_id: str, translated_text: str) -> None:
+    target_table = get_override("target_table") or settings.target_table
+    target_id_column = get_override("target_id_column") or settings.target_id_column
+    target_text_column = get_override("target_text_column") or settings.target_text_column
     conn.execute(
         f"""
-        INSERT INTO {settings.target_table} ({settings.target_id_column}, {settings.target_text_column})
+        INSERT INTO {target_table} ({target_id_column}, {target_text_column})
         VALUES (%s, %s)
-        ON CONFLICT ({settings.target_id_column}) DO UPDATE SET
-          {settings.target_text_column} = EXCLUDED.{settings.target_text_column}
+        ON CONFLICT ({target_id_column}) DO UPDATE SET
+          {target_text_column} = EXCLUDED.{target_text_column}
         """,
         (row_id, translated_text),
     )

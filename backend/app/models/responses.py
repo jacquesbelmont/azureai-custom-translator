@@ -1,16 +1,17 @@
+from typing import List, Optional
 from pydantic import BaseModel
 
 
 class ProviderMeta(BaseModel):
     azure_used: bool
     openai_used: bool
-    category_used: str | None = None
+    category_used: Optional[str] = None
 
 
 class TextTranslateResponse(BaseModel):
     source_text: str
     translated_text: str
-    post_edited_text: str | None = None
+    post_edited_text: Optional[str] = None
     provider_meta: ProviderMeta
 
 
@@ -18,8 +19,8 @@ class UrlTranslateResponse(BaseModel):
     url: str
     source_markdown: str
     translated_markdown: str
-    post_edited_markdown: str | None = None
-    title: str | None = None
+    post_edited_markdown: Optional[str] = None
+    title: Optional[str] = None
     provider_meta: ProviderMeta
 
 
@@ -28,5 +29,5 @@ class DbTranslateResponse(BaseModel):
     cached_hits: int
     translated: int
     failed: int
-    errors: list[str]
+    errors: List[str]
     provider_meta: ProviderMeta
