@@ -139,6 +139,14 @@ The frontend includes a Settings panel (`/settings`) that:
 
 For production deployments, do not expose runtime key configuration like this.
 
+## Production / Free Deployment
+
+This project is ready to be deployed.
+
+- **Recommended free-tier setup:** Render (backend) + Netlify (frontend) + Neon (Postgres)
+- Deploy guide: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+- Production notes: [`docs/PRODUCTION.md`](docs/PRODUCTION.md)
+
 Recommended local demo workflow:
 
 1. Open `http://localhost:4321/settings`
@@ -170,6 +178,8 @@ Batch verification:
 Full documentation lives under `docs/`:
 
 - [`docs/SETUP.md`](docs/SETUP.md) (install + run + PostgreSQL via Docker Compose)
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) (Render + Netlify + Neon free tier deployment)
+- [`docs/DEPLOYMENT_CHECKLIST.md`](docs/DEPLOYMENT_CHECKLIST.md) (quick checklist)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (high-level architecture + dataflow diagram)
 - [`docs/USAGE.md`](docs/USAGE.md) (how to use Text/Article/Batch/Settings)
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) (common errors and fixes)

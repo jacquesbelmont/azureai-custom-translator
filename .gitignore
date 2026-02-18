@@ -83,6 +83,10 @@ frontend/node_modules/
 .turbo/
 .next/
 
+# Netlify
+.netlify/
+netlify.toml.bak
+
 # Astro / Vite caches
 .astro/
 .vite/

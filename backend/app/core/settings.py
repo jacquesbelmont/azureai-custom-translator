@@ -29,7 +29,11 @@ class Settings(BaseSettings):
 
     cache_table: str = "translation_cache"
 
-    cors_allow_origins: List[str] = ["http://localhost:4321", "http://127.0.0.1:4321"]
+    cors_allow_origins: str = "http://localhost:4321,http://127.0.0.1:4321"
+
+    @property
+    def cors_allow_origins_list(self) -> List[str]:
+        return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]
 
 
 settings = Settings()
